@@ -8,21 +8,45 @@ expressWs(app);
 const websocketClients = new Map();
 
 app.ws("/ws", (ws, req) => {
-  // ws client connected
   const id = uuidv4();
   websocketClients.set(id, ws);
-  console.log("WebSocket connected");
+  console.log(`WebSocket connected: ${id}`);
+
+  // Tell the client their ID
+  ws.send(JSON.stringify({ type: "welcome", id }));
 
   ws.on("message", (msg) => {
-    console.log("message:", msg);
-    ws.send(`echo: ${msg}`);
+    let data;
+    try {
+      data = JSON.parse(msg);
+    } catch (err) {
+      console.error("Invalid JSON:", msg);
+      return;
+    }
+
+    const { type, target, payload } = data;
+
+    if (!target || !websocketClients.has(target)) {
+      console.error("Invalid target:", target);
+      return;
+    }
+
+    const targetWs = websocketClients.get(target);
+
+    // Forward the message to the target
+    targetWs.send(
+      JSON.stringify({
+        type,
+        from: id,
+        payload,
+      }),
+    );
   });
 
   ws.on("close", () => {
-    console.log("WebSocket disconnected");
+    websocketClients.delete(id);
+    console.log(`WebSocket disconnected: ${id}`);
   });
-
-  ws.send(id + "connected to /ws");
 });
 
 app.get("/", (_, res) => {

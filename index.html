@@ -1,5 +1,18 @@
+<div>lole</div>
+<pre id="data"></pre>
+<video id="localVideo" autoplay muted controls></video>
+<video id="remoteVideo" autoplay controls></video>
+<button id="startCall">Start Call</button>
+<button id="receiveCall">Receive Call</button>
+
 <script>
+  let myId = null;
+  let targetId = null;
   let data = "";
+  const peer = new RTCPeerConnection({
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  });
+  let localStream;
 
   let ws;
   let isConnected = false;
@@ -15,10 +28,28 @@
       reconnectInterval = null;
     };
 
-    ws.onmessage = (event) => {
-      data += "\n" + event.data;
-      let dataEl = document.getElementById("data");
-      dataEl.innerHTML = data;
+    ws.onmessage = async (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "welcome") {
+        myId = msg.id;
+        document.getElementById("data").textContent = `My ID: ${myId}`;
+        return;
+      }
+      if (msg.type === "offer") {
+        targetId = msg.from;
+        await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        ws.send(
+          JSON.stringify({ type: "answer", target: targetId, payload: answer }),
+        );
+      }
+      if (msg.type === "answer") {
+        await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
+      }
+      if (msg.type === "candidate") {
+        peer.addIceCandidate(new RTCIceCandidate(msg.payload));
+      }
     };
 
     ws.onclose = () => {
@@ -32,6 +63,46 @@
       isConnected = false;
     };
   };
+
+  async function startCall(isInitiator) {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
+
+    localStream
+      .getTracks()
+      .forEach((track) => peer.addTrack(track, localStream));
+
+    peer.onicecandidate = (event) => {
+      if (event.candidate && targetId) {
+        ws.send(
+          JSON.stringify({
+            type: "candidate",
+            target: targetId,
+            payload: event.candidate,
+          }),
+        );
+      }
+    };
+
+    peer.ontrack = (event) => {
+      const remoteVideo = document.getElementById("remoteVideo");
+      remoteVideo.srcObject = event.streams[0];
+    };
+
+    if (isInitiator) {
+      targetId = prompt("Enter ID of the peer to call:");
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      ws.send(
+        JSON.stringify({ type: "offer", target: targetId, payload: offer }),
+      );
+    }
+
+    const localVideo = document.getElementById("localVideo");
+    localVideo.srcObject = localStream;
+  }
 
   const attemptReconnect = () => {
     if (reconnectInterval) {
@@ -47,7 +118,13 @@
   };
 
   connectWebSocket();
-</script>
 
-<div>lole</div>
-<pre id="data"></pre>
+  // Call startCall(true) to initiate
+  // Call startCall(false) to receive
+  document.getElementById("startCall").addEventListener("click", () => {
+    startCall(true);
+  });
+  document.getElementById("receiveCall").addEventListener("click", () => {
+    startCall(false);
+  });
+</script>
