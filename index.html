@@ -1,0 +1,53 @@
+<script>
+  let data = "";
+
+  let ws;
+  let isConnected = false;
+  let reconnectInterval;
+  const connectWebSocket = () => {
+    ws = new WebSocket("ws://localhost:3000/ws");
+
+    ws.onopen = () => {
+      console.log("websocket opened");
+      isConnected = true;
+      console.log("clearing reconnect interval");
+      clearInterval(reconnectInterval);
+      reconnectInterval = null;
+    };
+
+    ws.onmessage = (event) => {
+      data += "\n" + event.data;
+      let dataEl = document.getElementById("data");
+      dataEl.innerHTML = data;
+    };
+
+    ws.onclose = () => {
+      console.log("websocket closed");
+      isConnected = false;
+      attemptReconnect();
+    };
+
+    ws.onerror = (error) => {
+      console.error("websocket error", error);
+      isConnected = false;
+    };
+  };
+
+  const attemptReconnect = () => {
+    if (reconnectInterval) {
+      console.log("already have a reconnect interval", reconnectInterval);
+      return;
+    } else {
+      console.log("starting reconnect interval");
+      reconnectInterval = setInterval(() => {
+        console.log("attempting reconnect");
+        connectWebSocket();
+      }, 3000);
+    }
+  };
+
+  connectWebSocket();
+</script>
+
+<div>lole</div>
+<pre id="data"></pre>
