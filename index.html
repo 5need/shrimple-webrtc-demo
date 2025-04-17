@@ -156,8 +156,13 @@
 
       async function prepareToCall() {
         addToConsole(
-          `ℹ️ Adding selected audio and video to my peer connection`,
+          `ℹ️ Adding selected video and audio to my peer connection`,
         );
+
+        // first remove all the previous video and audio sources
+        peer.getSenders().forEach((sender) => {
+          peer.removeTrack(sender);
+        });
 
         const videoSource = document.getElementById("videoSource").value;
         const audioSource = document.getElementById("audioSource").value;
@@ -232,6 +237,12 @@
 
       document.getElementById("startCall").addEventListener("click", () => {
         startCall();
+      });
+      document.getElementById("videoSource").addEventListener("input", () => {
+        prepareToCall();
+      });
+      document.getElementById("audioSource").addEventListener("input", () => {
+        prepareToCall();
       });
     </script>
   </body>
