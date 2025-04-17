@@ -51,7 +51,6 @@
         consl.innerHTML += log + "\n";
       };
 
-      let myId = null;
       let targetId = null;
       const peer = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -77,7 +76,7 @@
         ws.onmessage = async (event) => {
           const msg = JSON.parse(event.data);
           if (msg.type === "welcome") {
-            myId = msg.id;
+            const myId = msg.id;
             document.querySelectorAll(".myId").forEach((el) => {
               el.innerHTML = `${myId}`;
             });
