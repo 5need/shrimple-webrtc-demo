@@ -1,182 +1,206 @@
-<h1>Simple WebRTC Demo</h1>
-<p>asdfasdfasdf</p>
-<pre>My ID: <span class="myId">loading...</span></pre>
-<button id="startCall">Start Call</button>
-<button id="receiveCall">Receive Call</button>
-<hr />
-<div style="display: flex; flex-direction: column; gap: 1rem">
-  <div>
-    <video
-      id="localVideo"
-      autoplay
-      muted
-      style="border: 2px solid black"
-    ></video>
-    <pre>You: <span class="myId">loading...</span></pre>
-  </div>
-  <div>
-    <video id="remoteVideo" autoplay style="border: 2px solid black"></video>
-    <pre>Them: <span class="theirId"></span></pre>
-  </div>
-</div>
-<hr />
-<p><em>What's happening behind the scenes</em></p>
-<pre id="console" style="padding-bottom: 10rem"></pre>
-<hr />
+<html>
+  <head>
+    <title>Simple WebRTC Demo</title>
+  </head>
+  <body style="color: white; background: black">
+    <h1>Simple WebRTC Demo</h1>
+    <p>
+      This won't work with a symmetric NAT out of the box, which affects about 1
+      in 10 users. You'll want to route traffic through what's called a
+      <a href="https://webrtc.org/getting-started/turn-server">TURN server</a>
+      , which costs money.
+    </p>
+    <pre>My ID: <span class="myId">loading...</span></pre>
+    <button id="startCall">Start Call</button>
+    <button id="receiveCall">Receive Call</button>
+    <hr />
+    <div style="display: flex; flex-direction: column; gap: 1rem">
+      <div>
+        <video
+          id="localVideo"
+          autoplay
+          muted
+          style="border: 2px solid white"
+        ></video>
+        <pre>You: <span class="myId">loading...</span></pre>
+      </div>
+      <div>
+        <video
+          id="remoteVideo"
+          autoplay
+          style="border: 2px solid white"
+        ></video>
+        <pre>Them: <span class="theirId"></span></pre>
+      </div>
+    </div>
+    <hr />
+    <p><em>What's happening behind the scenes</em></p>
+    <pre id="console" style="padding-bottom: 10rem"></pre>
+    <hr />
 
-<script>
-  const addToConsole = (log) => {
-    const consl = document.getElementById("console");
-    consl.innerHTML += log + "\n";
-  };
+    <script>
+      const addToConsole = (log) => {
+        const consl = document.getElementById("console");
+        consl.innerHTML += log + "\n";
+      };
 
-  let myId = null;
-  let targetId = null;
-  const peer = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-  });
-  let localStream;
+      let myId = null;
+      let targetId = null;
+      const peer = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+      let localStream;
 
-  let ws;
-  let isConnected = false;
-  let reconnectInterval;
-  const connectWebSocket = () => {
-    ws = new WebSocket("ws://localhost:3000/ws");
+      let ws;
+      let isConnected = false;
+      let reconnectInterval;
+      const connectWebSocket = () => {
+        ws = new WebSocket("ws://localhost:3000/ws");
 
-    ws.onopen = () => {
-      addToConsole(
-        `✅ Communication with server established (through a websocket at /ws)`,
-      );
-      isConnected = true;
-      console.log("clearing reconnect interval");
-      clearInterval(reconnectInterval);
-      reconnectInterval = null;
-    };
+        ws.onopen = () => {
+          addToConsole(
+            `✅ Communication with server established (through a websocket at /ws)`,
+          );
+          isConnected = true;
+          console.log("clearing reconnect interval");
+          clearInterval(reconnectInterval);
+          reconnectInterval = null;
+        };
 
-    ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
-      if (msg.type === "welcome") {
-        myId = msg.id;
-        document.querySelectorAll(".myId").forEach((el) => {
-          el.innerHTML = `${myId}`;
+        ws.onmessage = async (event) => {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "welcome") {
+            myId = msg.id;
+            document.querySelectorAll(".myId").forEach((el) => {
+              el.innerHTML = `${myId}`;
+            });
+            addToConsole(`ℹ️ The server gave you an ID of ${myId}`);
+            return;
+          }
+          if (msg.type === "offer") {
+            targetId = msg.from;
+            await peer.setRemoteDescription(
+              new RTCSessionDescription(msg.payload),
+            );
+            const answer = await peer.createAnswer();
+            await peer.setLocalDescription(answer);
+            addToConsole(
+              `ℹ️ Received offer from ${targetId}\n   Now sending answer back`,
+            );
+            ws.send(
+              JSON.stringify({
+                type: "answer",
+                target: targetId,
+                payload: answer,
+              }),
+            );
+          }
+          if (msg.type === "answer") {
+            await peer.setRemoteDescription(
+              new RTCSessionDescription(msg.payload),
+            );
+            addToConsole(`ℹ️ Received answer`);
+          }
+          if (msg.type === "candidate") {
+            peer.addIceCandidate(new RTCIceCandidate(msg.payload));
+            addToConsole(`ℹ️ Received ICE candidate`);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log("websocket closed");
+          addToConsole(
+            `❌ Communication with server has been stopped (websocket closed)`,
+          );
+          isConnected = false;
+          attemptReconnect();
+        };
+
+        ws.onerror = (error) => {
+          console.error("websocket error", error);
+          addToConsole(
+            `❌ Communication with server has been stopped (websocket error)`,
+          );
+          isConnected = false;
+        };
+      };
+
+      async function startCall(isInitiator) {
+        addToConsole(`ℹ️ Adding webcam to my peer connection`);
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
         });
-        addToConsole(`ℹ️ The server gave you an ID of ${myId}`);
-        return;
+
+        localStream
+          .getTracks()
+          .forEach((track) => peer.addTrack(track, localStream));
+
+        peer.onicecandidate = (event) => {
+          addToConsole(`ℹ️ peer.onicecandidate`);
+          if (event.candidate && targetId) {
+            document.querySelectorAll(".theirId").forEach((el) => {
+              el.innerHTML = `${targetId}`;
+            });
+            console.log(targetId);
+            ws.send(
+              JSON.stringify({
+                type: "candidate",
+                target: targetId,
+                payload: event.candidate,
+              }),
+            );
+          }
+        };
+
+        peer.ontrack = (event) => {
+          addToConsole(`ℹ️ peer.ontrack`);
+          const remoteVideo = document.getElementById("remoteVideo");
+          remoteVideo.srcObject = event.streams[0];
+        };
+
+        if (isInitiator) {
+          targetId = prompt("Enter ID of the peer to call:");
+          const offer = await peer.createOffer();
+          await peer.setLocalDescription(offer);
+          addToConsole(
+            `ℹ️ Sending offer to ${targetId} through the server (via websocket)`,
+          );
+          ws.send(
+            JSON.stringify({ type: "offer", target: targetId, payload: offer }),
+          );
+        }
+
+        const localVideo = document.getElementById("localVideo");
+        localVideo.srcObject = localStream;
       }
-      if (msg.type === "offer") {
-        targetId = msg.from;
-        await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        addToConsole(
-          `ℹ️ Received offer from ${targetId}\n   Now sending answer back`,
-        );
-        ws.send(
-          JSON.stringify({ type: "answer", target: targetId, payload: answer }),
-        );
-      }
-      if (msg.type === "answer") {
-        await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
-        addToConsole(`ℹ️ Received answer`);
-      }
-      if (msg.type === "candidate") {
-        peer.addIceCandidate(new RTCIceCandidate(msg.payload));
-        addToConsole(`ℹ️ Received ICE candidate`);
-      }
-    };
 
-    ws.onclose = () => {
-      console.log("websocket closed");
-      addToConsole(
-        `❌ Communication with server has been stopped (websocket closed)`,
-      );
-      isConnected = false;
-      attemptReconnect();
-    };
+      const attemptReconnect = () => {
+        if (reconnectInterval) {
+          console.log("already have a reconnect interval", reconnectInterval);
+          return;
+        } else {
+          console.log("starting reconnect interval");
+          reconnectInterval = setInterval(() => {
+            console.log("attempting reconnect");
+            addToConsole(
+              `ℹ️ Attempting to reconnect to server again (websocket at /ws, every 3s)`,
+            );
+            connectWebSocket();
+          }, 3000);
+        }
+      };
 
-    ws.onerror = (error) => {
-      console.error("websocket error", error);
-      addToConsole(
-        `❌ Communication with server has been stopped (websocket error)`,
-      );
-      isConnected = false;
-    };
-  };
+      connectWebSocket();
 
-  async function startCall(isInitiator) {
-    addToConsole(`ℹ️ Adding webcam to my peer connection`);
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-
-    localStream
-      .getTracks()
-      .forEach((track) => peer.addTrack(track, localStream));
-
-    peer.onicecandidate = (event) => {
-      addToConsole(`ℹ️ peer.onicecandidate`);
-      if (event.candidate && targetId) {
-        document.querySelectorAll(".theirId").forEach((el) => {
-          el.innerHTML = `${targetId}`;
-        });
-        console.log(targetId);
-        ws.send(
-          JSON.stringify({
-            type: "candidate",
-            target: targetId,
-            payload: event.candidate,
-          }),
-        );
-      }
-    };
-
-    peer.ontrack = (event) => {
-      addToConsole(`ℹ️ peer.ontrack`);
-      const remoteVideo = document.getElementById("remoteVideo");
-      remoteVideo.srcObject = event.streams[0];
-    };
-
-    if (isInitiator) {
-      targetId = prompt("Enter ID of the peer to call:");
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
-      addToConsole(
-        `ℹ️ Sending offer to ${targetId} through the server (via websocket)`,
-      );
-      ws.send(
-        JSON.stringify({ type: "offer", target: targetId, payload: offer }),
-      );
-    }
-
-    const localVideo = document.getElementById("localVideo");
-    localVideo.srcObject = localStream;
-  }
-
-  const attemptReconnect = () => {
-    if (reconnectInterval) {
-      console.log("already have a reconnect interval", reconnectInterval);
-      return;
-    } else {
-      console.log("starting reconnect interval");
-      reconnectInterval = setInterval(() => {
-        console.log("attempting reconnect");
-        addToConsole(
-          `ℹ️ Attempting to reconnect to server again (websocket at /ws, every 3s)`,
-        );
-        connectWebSocket();
-      }, 3000);
-    }
-  };
-
-  connectWebSocket();
-
-  // Call startCall(true) to initiate
-  // Call startCall(false) to receive
-  document.getElementById("startCall").addEventListener("click", () => {
-    startCall(true);
-  });
-  document.getElementById("receiveCall").addEventListener("click", () => {
-    startCall(false);
-  });
-</script>
+      // Call startCall(true) to initiate
+      // Call startCall(false) to receive
+      document.getElementById("startCall").addEventListener("click", () => {
+        startCall(true);
+      });
+      document.getElementById("receiveCall").addEventListener("click", () => {
+        startCall(false);
+      });
+    </script>
+  </body>
+</html>
