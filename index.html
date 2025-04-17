@@ -5,10 +5,13 @@
   <body style="color: white; background: black">
     <h1>Simple WebRTC Demo</h1>
     <p>
-      This won't work with a symmetric NAT out of the box, which affects about 1
-      in 10 users. You'll want to route traffic through what's called a
+      WebRTC peer-to-peer connections may not work if one or both users are
+      behind a
+      <strong>symmetric NAT</strong> (common in some routers and enterprise
+      networks). In these cases, a
       <a href="https://webrtc.org/getting-started/turn-server">TURN server</a>
-      , which costs money.
+      is required to relay traffic. TURN servers are bandwidth-intensive and
+      typically cost money to run.
     </p>
     <pre>My ID: <span class="myId">loading...</span></pre>
     <button id="startCall">Call using their ID</button>
