@@ -11,8 +11,7 @@
       , which costs money.
     </p>
     <pre>My ID: <span class="myId">loading...</span></pre>
-    <button id="startCall">Start Call</button>
-    <button id="receiveCall">Receive Call</button>
+    <button id="startCall">Call using their ID</button>
     <hr />
     <div style="display: flex; flex-direction: column; gap: 1rem">
       <div>
@@ -20,7 +19,7 @@
           id="localVideo"
           autoplay
           muted
-          style="border: 2px solid white"
+          style="border: 2px solid white; max-width: 300px"
         ></video>
         <br />
         <label for="videoSource">📹</label>
@@ -35,9 +34,9 @@
         <video
           id="remoteVideo"
           autoplay
-          style="border: 2px solid white"
+          style="border: 2px solid white; max-width: 300px"
         ></video>
-        <pre>👆Them: <span class="theirId">[Get into a call first]</span></pre>
+        <pre>👆Them: <span class="theirId">[Get into a call first...]</span></pre>
       </div>
     </div>
     <hr />
@@ -155,7 +154,7 @@
 
       populateDeviceList();
 
-      async function startCall(isInitiator) {
+      async function prepareToCall() {
         addToConsole(
           `ℹ️ Adding selected audio and video to my peer connection`,
         );
@@ -194,8 +193,13 @@
           remoteVideo.srcObject = event.streams[0];
         };
 
-        if (isInitiator) {
-          targetId = prompt("Enter ID of the peer to call:");
+        const localVideo = document.getElementById("localVideo");
+        localVideo.srcObject = localStream;
+      }
+
+      async function startCall() {
+        targetId = prompt("Enter ID of the other client to call:");
+        if (!!targetId) {
           const offer = await peer.createOffer();
           await peer.setLocalDescription(offer);
           addToConsole(
@@ -205,9 +209,6 @@
             JSON.stringify({ type: "offer", target: targetId, payload: offer }),
           );
         }
-
-        const localVideo = document.getElementById("localVideo");
-        localVideo.srcObject = localStream;
       }
 
       const attemptReconnect = () => {
@@ -227,14 +228,10 @@
       };
 
       connectWebSocket();
+      prepareToCall();
 
-      // Call startCall(true) to initiate
-      // Call startCall(false) to receive
       document.getElementById("startCall").addEventListener("click", () => {
-        startCall(true);
-      });
-      document.getElementById("receiveCall").addEventListener("click", () => {
-        startCall(false);
+        startCall();
       });
     </script>
   </body>
