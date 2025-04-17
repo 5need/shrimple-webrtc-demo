@@ -22,6 +22,13 @@
           muted
           style="border: 2px solid white"
         ></video>
+        <br />
+        <label for="videoSource">📹</label>
+        <select id="videoSource"></select>
+        <br />
+        <label for="audioSource">🎤</label>
+        <select id="audioSource"></select>
+        <br />
         <pre>👆You: <span class="myId">loading...</span></pre>
       </div>
       <div>
@@ -125,11 +132,40 @@
         };
       };
 
+      async function populateDeviceList() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoSelect = document.getElementById("videoSource");
+        const audioSelect = document.getElementById("audioSource");
+
+        videoSelect.innerHTML = "";
+        audioSelect.innerHTML = "";
+
+        devices.forEach((device) => {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.text =
+            device.label || `${device.kind} ${videoSelect.length + 1}`;
+
+          if (device.kind === "videoinput") {
+            videoSelect.appendChild(option);
+          } else if (device.kind === "audioinput") {
+            audioSelect.appendChild(option);
+          }
+        });
+      }
+
+      populateDeviceList();
+
       async function startCall(isInitiator) {
-        addToConsole(`ℹ️ Adding webcam to my peer connection`);
+        addToConsole(
+          `ℹ️ Adding selected audio and video to my peer connection`,
+        );
+
+        const videoSource = document.getElementById("videoSource").value;
+        const audioSource = document.getElementById("audioSource").value;
         localStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
+          video: { deviceId: videoSource ? { exact: videoSource } : undefined },
+          audio: { deviceId: audioSource ? { exact: audioSource } : undefined },
         });
 
         localStream
