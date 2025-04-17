@@ -13,7 +13,7 @@
     <pre>My ID: <span class="myId">loading...</span></pre>
     <button id="startCall">Call using their ID</button>
     <hr />
-    <div style="display: flex; flex-direction: column; gap: 1rem">
+    <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem">
       <div>
         <video
           id="localVideo"
@@ -21,14 +21,20 @@
           muted
           style="border: 2px solid white; max-width: 300px"
         ></video>
-        <br />
-        <label for="videoSource">📹</label>
-        <select id="videoSource"></select>
-        <br />
-        <label for="audioSource">🎤</label>
-        <select id="audioSource"></select>
-        <br />
         <pre>👆You: <span class="myId">loading...</span></pre>
+        <button
+          id="enableVideoAudio"
+          style="font-weight: bold; font-size: 1.25rem"
+        >
+          👉 Enable Video/Audio 👈
+        </button>
+        <div id="select">
+          <label for="videoSource">📹</label>
+          <select id="videoSource"></select>
+          <br />
+          <label for="audioSource">🎤</label>
+          <select id="audioSource"></select>
+        </div>
       </div>
       <div>
         <video
@@ -79,7 +85,7 @@
             document.querySelectorAll(".myId").forEach((el) => {
               el.innerHTML = `${myId}`;
             });
-            addToConsole(`ℹ️ The server gave you an ID of ${myId}`);
+            addToConsole(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
             return;
           }
           if (msg.type === "offer") {
@@ -131,28 +137,36 @@
       };
 
       async function populateDeviceList() {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoSelect = document.getElementById("videoSource");
-        const audioSelect = document.getElementById("audioSource");
+        try {
+          await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoSelect = document.getElementById("videoSource");
+          const audioSelect = document.getElementById("audioSource");
 
-        videoSelect.innerHTML = "";
-        audioSelect.innerHTML = "";
+          videoSelect.innerHTML = "";
+          audioSelect.innerHTML = "";
 
-        devices.forEach((device) => {
-          const option = document.createElement("option");
-          option.value = device.deviceId;
-          option.text =
-            device.label || `${device.kind} ${videoSelect.length + 1}`;
+          devices.forEach((device) => {
+            const option = document.createElement("option");
+            option.value = device.deviceId;
+            option.text =
+              device.label || `${device.kind} ${videoSelect.length + 1}`;
 
-          if (device.kind === "videoinput") {
-            videoSelect.appendChild(option);
-          } else if (device.kind === "audioinput") {
-            audioSelect.appendChild(option);
-          }
-        });
+            if (device.kind === "videoinput") {
+              videoSelect.appendChild(option);
+            } else if (device.kind === "audioinput") {
+              audioSelect.appendChild(option);
+            }
+          });
+        } catch (err) {
+          addToConsole(
+            `‼️ Video/Audio permissions were denied, enable them please`,
+          );
+        }
       }
-
-      populateDeviceList();
 
       async function prepareToCall() {
         addToConsole(
@@ -233,7 +247,6 @@
       };
 
       connectWebSocket();
-      prepareToCall();
 
       document.getElementById("startCall").addEventListener("click", () => {
         startCall();
@@ -244,6 +257,16 @@
       document.getElementById("audioSource").addEventListener("input", () => {
         prepareToCall();
       });
+      document.getElementById("audioSource").addEventListener("input", () => {
+        prepareToCall();
+      });
+      document
+        .getElementById("enableVideoAudio")
+        .addEventListener("click", (e) => {
+          populateDeviceList();
+          prepareToCall();
+          e.target.remove();
+        });
     </script>
   </body>
 </html>
