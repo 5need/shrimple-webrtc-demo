@@ -49,9 +49,7 @@ app.ws("/ws", (ws, req) => {
   });
 });
 
-app.get("/", (_, res) => {
-  res.sendFile("index.html", { root: __dirname });
-});
+app.use(express.static("public"));
 
 app.listen(3000, () => {
   console.log("Server listening on http://localhost:3000");
