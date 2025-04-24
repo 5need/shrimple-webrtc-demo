@@ -64,7 +64,7 @@ async function prepareToCall() {
   peer.onicecandidate = (event) => {
     addToPseudoConsoleUI(`ℹ️ peer.onicecandidate`);
     if (event.candidate && peerId) {
-      document.querySelectorAll(".theirId").forEach((el) => {
+      document.querySelectorAll(".peerId").forEach((el) => {
         el.innerHTML = `${peerId}`;
       });
       console.log(peerId);
