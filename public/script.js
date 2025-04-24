@@ -1,83 +1,15 @@
-const addToPseudoConsoleUI = (log) => {
-  const consl = document.getElementById("console");
-  consl.innerHTML += log + "\n";
-};
+import { connectWebSocket } from "./websocketstuff.js";
 
-let targetId = null;
+export function addToPseudoConsoleUI(log) {
+  const pseudoConsole = document.getElementById("console");
+  pseudoConsole.innerHTML += log + "\n";
+}
+
+let peerId = null;
 const peer = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 });
 let localStream;
-
-let ws;
-let isConnected = false;
-let reconnectInterval;
-const connectWebSocket = () => {
-  ws = new WebSocket("ws://localhost:3000/ws");
-
-  ws.onopen = () => {
-    addToPseudoConsoleUI(
-      `✅ Communication with server established (through a websocket at /ws)`,
-    );
-    isConnected = true;
-    console.log("clearing reconnect interval");
-    clearInterval(reconnectInterval);
-    reconnectInterval = null;
-  };
-
-  ws.onmessage = async (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.type === "welcome") {
-      const myId = msg.id;
-      document.querySelectorAll(".myId").forEach((el) => {
-        el.innerHTML = `${myId}`;
-      });
-      addToPseudoConsoleUI(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
-      return;
-    }
-    if (msg.type === "offer") {
-      targetId = msg.from;
-      await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
-      const answer = await peer.createAnswer();
-      await peer.setLocalDescription(answer);
-      addToPseudoConsoleUI(
-        `ℹ️ Received offer from ${targetId}\n   Now sending answer back`,
-      );
-      ws.send(
-        JSON.stringify({
-          type: "answer",
-          target: targetId,
-          payload: answer,
-        }),
-      );
-    }
-    if (msg.type === "answer") {
-      await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
-      addToPseudoConsoleUI(`ℹ️ Received answer`);
-    }
-    if (msg.type === "candidate") {
-      peer.addIceCandidate(new RTCIceCandidate(msg.payload));
-      addToPseudoConsoleUI(`ℹ️ Received ICE candidate`);
-    }
-  };
-
-  ws.onclose = () => {
-    console.log("websocket closed");
-    addToPseudoConsoleUI(
-      `❌ Communication with server has been stopped (websocket closed)`,
-    );
-    isConnected = false;
-    attemptReconnect();
-  };
-
-  ws.onerror = (error) => {
-    console.error("websocket error", error);
-    addToPseudoConsoleUI(
-      `❌ Communication with server has been stopped (websocket error)`,
-    );
-    isConnected = false;
-  };
-};
 
 async function populateDeviceList() {
   try {
@@ -131,15 +63,15 @@ async function prepareToCall() {
 
   peer.onicecandidate = (event) => {
     addToPseudoConsoleUI(`ℹ️ peer.onicecandidate`);
-    if (event.candidate && targetId) {
+    if (event.candidate && peerId) {
       document.querySelectorAll(".theirId").forEach((el) => {
-        el.innerHTML = `${targetId}`;
+        el.innerHTML = `${peerId}`;
       });
-      console.log(targetId);
+      console.log(peerId);
       ws.send(
         JSON.stringify({
           type: "candidate",
-          target: targetId,
+          target: peerId,
           payload: event.candidate,
         }),
       );
@@ -157,36 +89,54 @@ async function prepareToCall() {
 }
 
 async function startCall() {
-  targetId = prompt("Enter ID of the other client to call:");
-  if (!!targetId) {
+  peerId = prompt("Enter ID of the other client to call:");
+  if (!!peerId) {
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
     addToPseudoConsoleUI(
-      `ℹ️ Sending offer to ${targetId} through the server (via websocket)`,
+      `ℹ️ Sending offer to ${peerId} through the server (via websocket)`,
     );
-    ws.send(
-      JSON.stringify({ type: "offer", target: targetId, payload: offer }),
-    );
+    ws.send(JSON.stringify({ type: "offer", target: peerId, payload: offer }));
   }
 }
 
-const attemptReconnect = () => {
-  if (reconnectInterval) {
-    console.log("already have a reconnect interval", reconnectInterval);
+const ws = connectWebSocket();
+
+ws.onmessage = async (event) => {
+  const msg = JSON.parse(event.data);
+  if (msg.type === "welcome") {
+    const myId = msg.id;
+    document.querySelectorAll(".myId").forEach((el) => {
+      el.innerHTML = `${myId}`;
+    });
+    addToPseudoConsoleUI(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
     return;
-  } else {
-    console.log("starting reconnect interval");
-    reconnectInterval = setInterval(() => {
-      console.log("attempting reconnect");
-      addToPseudoConsoleUI(
-        `ℹ️ Attempting to reconnect to server again (websocket at /ws, every 3s)`,
-      );
-      connectWebSocket();
-    }, 3000);
+  }
+  if (msg.type === "offer") {
+    peerId = msg.from;
+    await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
+    const answer = await peer.createAnswer();
+    await peer.setLocalDescription(answer);
+    addToPseudoConsoleUI(
+      `ℹ️ Received offer from ${peerId}\n   Now sending answer back`,
+    );
+    ws.send(
+      JSON.stringify({
+        type: "answer",
+        target: peerId,
+        payload: answer,
+      }),
+    );
+  }
+  if (msg.type === "answer") {
+    await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
+    addToPseudoConsoleUI(`ℹ️ Received answer`);
+  }
+  if (msg.type === "candidate") {
+    peer.addIceCandidate(new RTCIceCandidate(msg.payload));
+    addToPseudoConsoleUI(`ℹ️ Received ICE candidate`);
   }
 };
-
-connectWebSocket();
 
 document.getElementById("startCall").addEventListener("click", () => {
   startCall();
