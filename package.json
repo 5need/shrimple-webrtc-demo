@@ -1,5 +1,5 @@
 {
-  "name": "webrtc",
+  "name": "shrimple-webrtc-demo",
   "devDependencies": {
     "@types/bun": "latest"
   },
