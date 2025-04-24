@@ -1,4 +1,4 @@
-const addToConsole = (log) => {
+const addToPseudoConsoleUI = (log) => {
   const consl = document.getElementById("console");
   consl.innerHTML += log + "\n";
 };
@@ -16,7 +16,7 @@ const connectWebSocket = () => {
   ws = new WebSocket("ws://localhost:3000/ws");
 
   ws.onopen = () => {
-    addToConsole(
+    addToPseudoConsoleUI(
       `✅ Communication with server established (through a websocket at /ws)`,
     );
     isConnected = true;
@@ -32,7 +32,7 @@ const connectWebSocket = () => {
       document.querySelectorAll(".myId").forEach((el) => {
         el.innerHTML = `${myId}`;
       });
-      addToConsole(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
+      addToPseudoConsoleUI(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
       return;
     }
     if (msg.type === "offer") {
@@ -40,7 +40,7 @@ const connectWebSocket = () => {
       await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
-      addToConsole(
+      addToPseudoConsoleUI(
         `ℹ️ Received offer from ${targetId}\n   Now sending answer back`,
       );
       ws.send(
@@ -53,17 +53,17 @@ const connectWebSocket = () => {
     }
     if (msg.type === "answer") {
       await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
-      addToConsole(`ℹ️ Received answer`);
+      addToPseudoConsoleUI(`ℹ️ Received answer`);
     }
     if (msg.type === "candidate") {
       peer.addIceCandidate(new RTCIceCandidate(msg.payload));
-      addToConsole(`ℹ️ Received ICE candidate`);
+      addToPseudoConsoleUI(`ℹ️ Received ICE candidate`);
     }
   };
 
   ws.onclose = () => {
     console.log("websocket closed");
-    addToConsole(
+    addToPseudoConsoleUI(
       `❌ Communication with server has been stopped (websocket closed)`,
     );
     isConnected = false;
@@ -72,7 +72,7 @@ const connectWebSocket = () => {
 
   ws.onerror = (error) => {
     console.error("websocket error", error);
-    addToConsole(
+    addToPseudoConsoleUI(
       `❌ Communication with server has been stopped (websocket error)`,
     );
     isConnected = false;
@@ -104,12 +104,16 @@ async function populateDeviceList() {
       }
     });
   } catch (err) {
-    addToConsole(`‼️ Video/Audio permissions were denied, enable them please`);
+    addToPseudoConsoleUI(
+      `‼️ Video/Audio permissions were denied, enable them please`,
+    );
   }
 }
 
 async function prepareToCall() {
-  addToConsole(`ℹ️ Adding selected video and audio to my peer connection`);
+  addToPseudoConsoleUI(
+    `ℹ️ Adding selected video and audio to my peer connection`,
+  );
 
   // first remove all the previous video and audio sources
   peer.getSenders().forEach((sender) => {
@@ -126,7 +130,7 @@ async function prepareToCall() {
   localStream.getTracks().forEach((track) => peer.addTrack(track, localStream));
 
   peer.onicecandidate = (event) => {
-    addToConsole(`ℹ️ peer.onicecandidate`);
+    addToPseudoConsoleUI(`ℹ️ peer.onicecandidate`);
     if (event.candidate && targetId) {
       document.querySelectorAll(".theirId").forEach((el) => {
         el.innerHTML = `${targetId}`;
@@ -143,7 +147,7 @@ async function prepareToCall() {
   };
 
   peer.ontrack = (event) => {
-    addToConsole(`ℹ️ peer.ontrack`);
+    addToPseudoConsoleUI(`ℹ️ peer.ontrack`);
     const remoteVideo = document.getElementById("remoteVideo");
     remoteVideo.srcObject = event.streams[0];
   };
@@ -157,7 +161,7 @@ async function startCall() {
   if (!!targetId) {
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
-    addToConsole(
+    addToPseudoConsoleUI(
       `ℹ️ Sending offer to ${targetId} through the server (via websocket)`,
     );
     ws.send(
@@ -174,7 +178,7 @@ const attemptReconnect = () => {
     console.log("starting reconnect interval");
     reconnectInterval = setInterval(() => {
       console.log("attempting reconnect");
-      addToConsole(
+      addToPseudoConsoleUI(
         `ℹ️ Attempting to reconnect to server again (websocket at /ws, every 3s)`,
       );
       connectWebSocket();
