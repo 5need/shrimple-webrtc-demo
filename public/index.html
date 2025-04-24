@@ -1,9 +1,21 @@
 <html>
   <head>
-    <title>Simple WebRTC Demo</title>
+    <meta charset="UTF-8" />
+    <title>Shrimple WebRTC Demo</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="" />
+    <link rel="icon" href="https://fav.farm/🦐" />
   </head>
-  <body style="color: white; background: black">
-    <h1>Simple WebRTC Demo</h1>
+  <body
+    style="
+      color: #4c4f69;
+      background: #eff1f5;
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+    "
+  >
+    <h1>🦐Shrimple🦐 WebRTC Demo</h1>
     <p>
       WebRTC peer-to-peer connections may not work if one or both users are
       behind a
@@ -14,6 +26,9 @@
       typically cost money to run.
     </p>
     <pre>My ID: <span class="myId">loading...</span></pre>
+    <button id="enableVideoAudio" style="font-weight: bold; font-size: 1.25rem">
+      👉 Enable My Video/Audio 👈
+    </button>
     <button id="startCall">Call using their ID</button>
     <hr />
     <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem">
@@ -22,15 +37,9 @@
           id="localVideo"
           autoplay
           muted
-          style="border: 2px solid white; max-width: 300px"
+          style="border: 2px solid #4c4f69; max-width: 300px"
         ></video>
         <pre>👆You: <span class="myId">loading...</span></pre>
-        <button
-          id="enableVideoAudio"
-          style="font-weight: bold; font-size: 1.25rem"
-        >
-          👉 Enable Video/Audio 👈
-        </button>
         <div id="select">
           <label for="videoSource">📹</label>
           <select id="videoSource"></select>
@@ -43,14 +52,14 @@
         <video
           id="remoteVideo"
           autoplay
-          style="border: 2px solid white; max-width: 300px"
+          style="border: 2px solid #4c4f69; max-width: 300px"
         ></video>
         <pre>👆Them: <span class="theirId">[Get into a call first...]</span></pre>
       </div>
     </div>
     <hr />
     <p><em>What's happening behind the scenes</em></p>
-    <pre id="console" style="padding-bottom: 10rem"></pre>
+    <pre id="console" style="padding-bottom: 10rem; overflow: auto"></pre>
     <hr />
 
     <script src="script.js"></script>
