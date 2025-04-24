@@ -163,3 +163,33 @@ document.getElementById("enableVideoAudio").addEventListener("click", (e) => {
   prepareToCall();
   e.target.remove();
 });
+document.querySelectorAll(".myId").forEach((el) => {
+  el.addEventListener("click", (e) => {
+    const range = document.createRange();
+    range.selectNodeContents(e.target);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    navigator.clipboard.writeText(sel.toString());
+    setTimeout(() => {
+      sel.removeAllRanges(); // Deselect after 200ms
+    }, 150);
+
+    console.log("wew");
+  });
+});
+document.querySelectorAll(".peerId").forEach((el) => {
+  el.addEventListener("click", (e) => {
+    const range = document.createRange();
+    range.selectNodeContents(e.target);
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    navigator.clipboard.writeText(sel.toString());
+    setTimeout(() => {
+      sel.removeAllRanges(); // Deselect after 200ms
+    }, 150);
+
+    console.log("wew");
+  });
+});
