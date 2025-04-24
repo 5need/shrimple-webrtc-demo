@@ -26,19 +26,31 @@
       typically cost money to run.
     </p>
     <pre>My ID: <span class="myId">loading...</span></pre>
-    <button id="enableVideoAudio" style="font-weight: bold; font-size: 1.25rem">
-      👉 Enable My Video/Audio 👈
-    </button>
-    <button id="startCall">Call using their ID</button>
     <hr />
     <div style="display: flex; flex-direction: row; flex-wrap: wrap; gap: 2rem">
       <div>
-        <video
-          id="localVideo"
-          autoplay
-          muted
-          style="border: 2px solid #4c4f69; max-width: 300px"
-        ></video>
+        <div
+          style="
+            border: 2px solid #4c4f69;
+            max-width: 300px;
+            position: relative;
+          "
+        >
+          <button
+            id="enableVideoAudio"
+            style="
+              font-weight: bold;
+              font-size: 1.25rem;
+              position: absolute;
+              z-index: 1;
+              width: 100%;
+              height: 100%;
+            "
+          >
+            👉 1. Enable My Video/Audio
+          </button>
+          <video id="localVideo" autoplay muted style="width: 100%"></video>
+        </div>
         <pre>👆You: <span class="myId">loading...</span></pre>
         <div id="select">
           <label for="videoSource">📹</label>
@@ -49,11 +61,37 @@
         </div>
       </div>
       <div>
-        <video
-          id="remoteVideo"
-          autoplay
-          style="border: 2px solid #4c4f69; max-width: 300px"
-        ></video>
+        <div
+          style="
+            border: 2px solid #4c4f69;
+            max-width: 300px;
+            position: relative;
+          "
+        >
+          <button
+            id="startCall"
+            style="
+              font-weight: bold;
+              font-size: 1.25rem;
+              position: absolute;
+              z-index: 0;
+              width: 100%;
+              height: 100%;
+            "
+          >
+            👉 2. Call using their ID
+          </button>
+          <video
+            id="remoteVideo"
+            autoplay
+            style="
+              width: 100%;
+              pointer-events: none;
+              position: relative;
+              z-index: 1;
+            "
+          ></video>
+        </div>
         <pre>👆Them: <span class="peerId">[Get into a call first...]</span></pre>
       </div>
     </div>
