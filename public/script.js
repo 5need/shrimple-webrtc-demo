@@ -6,7 +6,7 @@ export function addToPseudoConsoleUI(log) {
 }
 
 let peerId = null;
-const peer = new RTCPeerConnection({
+const myPeerConnection = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 });
 let localStream;
@@ -48,8 +48,8 @@ async function prepareToCall() {
   );
 
   // first remove all the previous video and audio sources
-  peer.getSenders().forEach((sender) => {
-    peer.removeTrack(sender);
+  myPeerConnection.getSenders().forEach((sender) => {
+    myPeerConnection.removeTrack(sender);
   });
 
   const videoSource = document.getElementById("videoSource").value;
@@ -59,9 +59,11 @@ async function prepareToCall() {
     audio: { deviceId: audioSource ? { exact: audioSource } : undefined },
   });
 
-  localStream.getTracks().forEach((track) => peer.addTrack(track, localStream));
+  localStream
+    .getTracks()
+    .forEach((track) => myPeerConnection.addTrack(track, localStream));
 
-  peer.onicecandidate = (event) => {
+  myPeerConnection.onicecandidate = (event) => {
     addToPseudoConsoleUI(`ℹ️ peer.onicecandidate`);
     if (event.candidate && peerId) {
       document.querySelectorAll(".peerId").forEach((el) => {
@@ -78,7 +80,7 @@ async function prepareToCall() {
     }
   };
 
-  peer.ontrack = (event) => {
+  myPeerConnection.ontrack = (event) => {
     addToPseudoConsoleUI(`ℹ️ peer.ontrack`);
     const remoteVideo = document.getElementById("remoteVideo");
     remoteVideo.srcObject = event.streams[0];
@@ -86,13 +88,14 @@ async function prepareToCall() {
 
   const localVideo = document.getElementById("localVideo");
   localVideo.srcObject = localStream;
+
+  await startCall(peerId);
 }
 
-async function startCall() {
-  peerId = prompt("Enter ID of the other client to call:");
-  if (!!peerId) {
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
+async function startCall(newPeerId) {
+  if (!!newPeerId) {
+    const offer = await myPeerConnection.createOffer();
+    await myPeerConnection.setLocalDescription(offer);
     addToPseudoConsoleUI(
       `ℹ️ Sending offer to ${peerId} through the server (via websocket)`,
     );
@@ -114,9 +117,11 @@ ws.onmessage = async (event) => {
   }
   if (msg.type === "offer") {
     peerId = msg.from;
-    await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
-    const answer = await peer.createAnswer();
-    await peer.setLocalDescription(answer);
+    await myPeerConnection.setRemoteDescription(
+      new RTCSessionDescription(msg.payload),
+    );
+    const answer = await myPeerConnection.createAnswer();
+    await myPeerConnection.setLocalDescription(answer);
     addToPseudoConsoleUI(
       `ℹ️ Received offer from ${peerId}\n   Now sending answer back`,
     );
@@ -129,17 +134,20 @@ ws.onmessage = async (event) => {
     );
   }
   if (msg.type === "answer") {
-    await peer.setRemoteDescription(new RTCSessionDescription(msg.payload));
+    await myPeerConnection.setRemoteDescription(
+      new RTCSessionDescription(msg.payload),
+    );
     addToPseudoConsoleUI(`ℹ️ Received answer`);
   }
   if (msg.type === "candidate") {
-    peer.addIceCandidate(new RTCIceCandidate(msg.payload));
+    myPeerConnection.addIceCandidate(new RTCIceCandidate(msg.payload));
     addToPseudoConsoleUI(`ℹ️ Received ICE candidate`);
   }
 };
 
 document.getElementById("startCall").addEventListener("click", () => {
-  startCall();
+  peerId = prompt("Enter ID of the other client to call:");
+  startCall(peerId);
 });
 document.getElementById("videoSource").addEventListener("input", () => {
   prepareToCall();
