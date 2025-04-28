@@ -2,6 +2,10 @@ import { createWebSocket } from "./websocketstuff.js";
 
 const selectVideoSourceInput = document.getElementById("videoSource");
 const selectAudioSourceInput = document.getElementById("audioSource");
+const otherCallerIdForm = document.getElementById("startCall");
+const enableVideoAndAudioButton = document.getElementById(
+  "enableVideoAndAudioButton",
+);
 
 // Just some stuff to make the pseudo-console work
 const pseudoConsole = document.getElementById("console");
@@ -50,7 +54,7 @@ async function populateMediaDeviceList() {
   }
 }
 
-async function prepareToCall() {
+async function addVideoAndAudioToMyRTCPeerConnection() {
   // first remove all the previous video and audio sources from myRTCPeerConnection
   myRTCPeerConnection.getSenders().forEach((sender) => {
     myRTCPeerConnection.removeTrack(sender);
@@ -71,6 +75,13 @@ async function prepareToCall() {
       `📹 Adding <em>${track.label || track.kind}</em> to <mark>myRTCPeerConnection</mark>`,
     );
   });
+
+  const localVideo = document.getElementById("localVideo");
+  localVideo.srcObject = localStream;
+}
+
+async function prepareMyRTCPeerConnection() {
+  await addVideoAndAudioToMyRTCPeerConnection();
 
   myRTCPeerConnection.onicecandidate = (event) => {
     // pseudoConsoleDotLog(`ℹ️ myRTCPeerConnection.onicecandidate`);
@@ -101,29 +112,21 @@ async function prepareToCall() {
     const remoteVideo = document.getElementById("remoteVideo");
     remoteVideo.srcObject = event.streams[0];
   };
-
-  const localVideo = document.getElementById("localVideo");
-  localVideo.srcObject = localStream;
-
-  await startCall(otherCallerId);
 }
 
-async function startCall(newOtherCallerId) {
-  if (!!newOtherCallerId) {
-    otherCallerId = newOtherCallerId;
-    const offer = await myRTCPeerConnection.createOffer();
-    await myRTCPeerConnection.setLocalDescription(offer);
-    pseudoConsoleDotLog(
-      `ℹ️ Sending offer to ${newOtherCallerId.slice(0, 8) + "…"} through the server (via websocket)`,
-    );
-    ws.send(
-      JSON.stringify({
-        type: "offer",
-        target: newOtherCallerId,
-        payload: offer,
-      }),
-    );
-  }
+async function sendCallOfferToOtherCaller() {
+  const offer = await myRTCPeerConnection.createOffer();
+  await myRTCPeerConnection.setLocalDescription(offer);
+  pseudoConsoleDotLog(
+    `ℹ️ Sending offer to ${otherCallerId.slice(0, 8) + "…"} through the server (via websocket)`,
+  );
+  ws.send(
+    JSON.stringify({
+      type: "offer",
+      target: otherCallerId,
+      payload: offer,
+    }),
+  );
 }
 
 const ws = createWebSocket();
@@ -175,25 +178,34 @@ ws.onmessage = async (event) => {
   }
 };
 
-document.getElementById("startCall").addEventListener("submit", (e) => {
-  const i = e.target.querySelector("input");
-  console.log(i.value);
-  startCall(i.value);
+otherCallerIdForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const otherCallerIdInput = e.target.querySelector("input");
+  if (!!otherCallerIdInput.value) {
+    otherCallerId = otherCallerIdInput.value;
+    await sendCallOfferToOtherCaller();
+  }
 });
-selectVideoSourceInput.addEventListener("input", () => {
-  prepareToCall();
+
+selectVideoSourceInput.addEventListener("input", async () => {
+  await prepareMyRTCPeerConnection();
+  if (!!otherCallerId) {
+    await sendCallOfferToOtherCaller();
+  }
 });
-selectAudioSourceInput.addEventListener("input", () => {
-  prepareToCall();
+
+selectAudioSourceInput.addEventListener("input", async () => {
+  await prepareMyRTCPeerConnection();
+  if (!!otherCallerId) {
+    await sendCallOfferToOtherCaller();
+  }
 });
-document
-  .getElementById("enableVideoAndAudioButton")
-  .addEventListener("click", (e) => {
-    populateMediaDeviceList();
-    prepareToCall();
-    e.target.remove();
-  });
+
+enableVideoAndAudioButton.addEventListener("click", async (e) => {
+  await populateMediaDeviceList();
+  await prepareMyRTCPeerConnection();
+  e.target.remove();
+});
 
 function copyElementTextToClipboard(e) {
   const range = document.createRange();
