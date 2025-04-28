@@ -1,4 +1,4 @@
-# shrimple-webrtc-demo
+# 🦐Shrimple🦐 WebRTC Demo
 
 To install dependencies:
 
