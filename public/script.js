@@ -1,75 +1,76 @@
 import { connectWebSocket } from "./websocketstuff.js";
 
-export function addToPseudoConsoleUI(log) {
+const selectVideoSourceInput = document.getElementById("videoSource");
+const selectAudioSourceInput = document.getElementById("audioSource");
+
+export function pseudoConsoleDotLog(log) {
   const pseudoConsole = document.getElementById("console");
   pseudoConsole.innerHTML += log + "\n";
 }
 
 let peerId = null;
-const myPeerConnection = new RTCPeerConnection({
+const myRTCPeerConnection = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 });
-let localStream;
 
-async function populateDeviceList() {
+async function populateMediaDeviceList() {
   try {
     await navigator.mediaDevices.getUserMedia({
       video: true,
       audio: true,
     });
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoSelect = document.getElementById("videoSource");
-    const audioSelect = document.getElementById("audioSource");
 
-    videoSelect.innerHTML = "";
-    audioSelect.innerHTML = "";
+    selectVideoSourceInput.innerHTML = "";
+    selectAudioSourceInput.innerHTML = "";
 
     devices.forEach((device) => {
       const option = document.createElement("option");
       option.value = device.deviceId;
-      option.text = device.label || `${device.kind} ${videoSelect.length + 1}`;
+      option.text =
+        device.label || `${device.kind} ${selectVideoSourceInput.length + 1}`;
 
       if (device.kind === "videoinput") {
-        videoSelect.appendChild(option);
+        selectVideoSourceInput.appendChild(option);
       } else if (device.kind === "audioinput") {
-        audioSelect.appendChild(option);
+        selectAudioSourceInput.appendChild(option);
       }
     });
   } catch (err) {
-    addToPseudoConsoleUI(
+    pseudoConsoleDotLog(
       `‼️ Video/Audio permissions were denied, enable them please`,
     );
   }
 }
 
 async function prepareToCall() {
-  addToPseudoConsoleUI(
-    `ℹ️ Adding selected video and audio to my peer connection`,
-  );
-
-  // first remove all the previous video and audio sources
-  myPeerConnection.getSenders().forEach((sender) => {
-    myPeerConnection.removeTrack(sender);
+  // first remove all the previous video and audio sources from myRTCPeerConnection
+  myRTCPeerConnection.getSenders().forEach((sender) => {
+    myRTCPeerConnection.removeTrack(sender);
   });
 
-  const videoSource = document.getElementById("videoSource").value;
-  const audioSource = document.getElementById("audioSource").value;
-  localStream = await navigator.mediaDevices.getUserMedia({
+  const videoSource = selectVideoSourceInput.value;
+  const audioSource = selectAudioSourceInput.value;
+
+  // set localStream to our selected video and audio source (or default ones)
+  const localStream = await navigator.mediaDevices.getUserMedia({
     video: { deviceId: videoSource ? { exact: videoSource } : undefined },
     audio: { deviceId: audioSource ? { exact: audioSource } : undefined },
   });
 
-  localStream
-    .getTracks()
-    .forEach((track) => myPeerConnection.addTrack(track, localStream));
+  localStream.getTracks().forEach((track) => {
+    myRTCPeerConnection.addTrack(track, localStream);
+    pseudoConsoleDotLog(
+      `📹 Adding <em>${track.label || track.kind}</em> to <mark>myRTCPeerConnection</mark>`,
+    );
+  });
 
-  myPeerConnection.onicecandidate = (event) => {
-    addToPseudoConsoleUI(`ℹ️ peer.onicecandidate`);
+  myRTCPeerConnection.onicecandidate = (event) => {
+    // pseudoConsoleDotLog(`ℹ️ myRTCPeerConnection.onicecandidate`);
     if (event.candidate && peerId) {
       document.querySelectorAll(".peerId").forEach((el) => {
         el.innerHTML = `${peerId}`;
       });
-      console.log(peerId);
       ws.send(
         JSON.stringify({
           type: "candidate",
@@ -80,8 +81,16 @@ async function prepareToCall() {
     }
   };
 
-  myPeerConnection.ontrack = (event) => {
-    addToPseudoConsoleUI(`ℹ️ peer.ontrack`);
+  myRTCPeerConnection.oniceconnectionstatechange = () => {
+    if (myRTCPeerConnection.iceConnectionState === "connected") {
+      pseudoConsoleDotLog(
+        `ℹ️ ICE connection established on <mark>myRTCPeerConnection</mark>`,
+      );
+    }
+  };
+
+  myRTCPeerConnection.ontrack = (event) => {
+    // pseudoConsoleDotLog(`ℹ️ myRTCPeerConnection.ontrack`);
     const remoteVideo = document.getElementById("remoteVideo");
     remoteVideo.srcObject = event.streams[0];
   };
@@ -94,9 +103,9 @@ async function prepareToCall() {
 
 async function startCall(newPeerId) {
   if (!!newPeerId) {
-    const offer = await myPeerConnection.createOffer();
-    await myPeerConnection.setLocalDescription(offer);
-    addToPseudoConsoleUI(
+    const offer = await myRTCPeerConnection.createOffer();
+    await myRTCPeerConnection.setLocalDescription(offer);
+    pseudoConsoleDotLog(
       `ℹ️ Sending offer to ${peerId} through the server (via websocket)`,
     );
     ws.send(JSON.stringify({ type: "offer", target: peerId, payload: offer }));
@@ -112,18 +121,18 @@ ws.onmessage = async (event) => {
     document.querySelectorAll(".myId").forEach((el) => {
       el.innerHTML = `${myId}`;
     });
-    addToPseudoConsoleUI(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
+    pseudoConsoleDotLog(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
     return;
   }
   if (msg.type === "offer") {
     peerId = msg.from;
-    await myPeerConnection.setRemoteDescription(
+    await myRTCPeerConnection.setRemoteDescription(
       new RTCSessionDescription(msg.payload),
     );
-    const answer = await myPeerConnection.createAnswer();
-    await myPeerConnection.setLocalDescription(answer);
-    addToPseudoConsoleUI(
-      `ℹ️ Received offer from ${peerId}\n   Now sending answer back`,
+    const answer = await myRTCPeerConnection.createAnswer();
+    await myRTCPeerConnection.setLocalDescription(answer);
+    pseudoConsoleDotLog(
+      `ℹ️ Received offer from ${peerId.slice(0, 8) + "…"} Now I'm sending an answer back`,
     );
     ws.send(
       JSON.stringify({
@@ -134,14 +143,14 @@ ws.onmessage = async (event) => {
     );
   }
   if (msg.type === "answer") {
-    await myPeerConnection.setRemoteDescription(
+    await myRTCPeerConnection.setRemoteDescription(
       new RTCSessionDescription(msg.payload),
     );
-    addToPseudoConsoleUI(`ℹ️ Received answer`);
+    pseudoConsoleDotLog(`ℹ️ Received answer`);
   }
   if (msg.type === "candidate") {
-    myPeerConnection.addIceCandidate(new RTCIceCandidate(msg.payload));
-    addToPseudoConsoleUI(`ℹ️ Received ICE candidate`);
+    myRTCPeerConnection.addIceCandidate(new RTCIceCandidate(msg.payload));
+    // pseudoConsoleDotLog(`ℹ️ Received ICE candidate`);
   }
 };
 
@@ -149,43 +158,35 @@ document.getElementById("startCall").addEventListener("click", () => {
   peerId = prompt("Enter ID of the other client to call:");
   startCall(peerId);
 });
-document.getElementById("videoSource").addEventListener("input", () => {
+selectVideoSourceInput.addEventListener("input", () => {
   prepareToCall();
 });
-document.getElementById("audioSource").addEventListener("input", () => {
+selectAudioSourceInput.addEventListener("input", () => {
   prepareToCall();
 });
-document.getElementById("audioSource").addEventListener("input", () => {
-  prepareToCall();
-});
-document.getElementById("enableVideoAudio").addEventListener("click", (e) => {
-  populateDeviceList();
-  prepareToCall();
-  e.target.remove();
-});
-document.querySelectorAll(".myId").forEach((el) => {
-  el.addEventListener("click", (e) => {
-    const range = document.createRange();
-    range.selectNodeContents(e.target);
-    const sel = getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    navigator.clipboard.writeText(sel.toString());
-    setTimeout(() => {
-      sel.removeAllRanges(); // Deselect after 200ms
-    }, 150);
+document
+  .getElementById("enableVideoAndAudioButton")
+  .addEventListener("click", (e) => {
+    populateMediaDeviceList();
+    prepareToCall();
+    e.target.remove();
   });
+
+function copyElementTextToClipboard(e) {
+  const range = document.createRange();
+  range.selectNodeContents(e.target);
+  const sel = getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  navigator.clipboard.writeText(sel.toString());
+  setTimeout(() => {
+    sel.removeAllRanges(); // Deselect after 200ms
+  }, 150);
+}
+
+document.querySelectorAll(".myId").forEach((el) => {
+  el.addEventListener("click", copyElementTextToClipboard);
 });
 document.querySelectorAll(".peerId").forEach((el) => {
-  el.addEventListener("click", (e) => {
-    const range = document.createRange();
-    range.selectNodeContents(e.target);
-    const sel = getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    navigator.clipboard.writeText(sel.toString());
-    setTimeout(() => {
-      sel.removeAllRanges(); // Deselect after 200ms
-    }, 150);
-  });
+  el.addEventListener("click", copyElementTextToClipboard);
 });
