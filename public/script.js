@@ -3,9 +3,16 @@ import { connectWebSocket } from "./websocketstuff.js";
 const selectVideoSourceInput = document.getElementById("videoSource");
 const selectAudioSourceInput = document.getElementById("audioSource");
 
+// Just some stuff to make the pseudo-console work
+const pseudoConsole = document.getElementById("console");
 export function pseudoConsoleDotLog(log) {
-  const pseudoConsole = document.getElementById("console");
+  const isScrolledToBottom =
+    pseudoConsole.scrollHeight - pseudoConsole.scrollTop <=
+    pseudoConsole.clientHeight + 3;
   pseudoConsole.innerHTML += log + "\n";
+  if (isScrolledToBottom) {
+    pseudoConsole.scrollTop = pseudoConsole.scrollHeight;
+  }
 }
 
 let peerId = null;
