@@ -3,7 +3,7 @@ import { pseudoConsoleDotLog } from "./script.js";
 let isWebSocketConnected = false;
 let reconnectInterval;
 
-export function connectWebSocket() {
+export function createWebSocket() {
   const ws = new WebSocket("ws://localhost:3000/ws");
 
   ws.onopen = () => {
@@ -47,7 +47,7 @@ function attemptReconnect() {
       pseudoConsoleDotLog(
         `ℹ️ Attempting to reconnect to server again (websocket at <mark>/ws</mark>, every 3s)`,
       );
-      connectWebSocket();
+      createWebSocket();
     }, 3000);
   }
 }

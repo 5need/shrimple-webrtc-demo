@@ -1,4 +1,4 @@
-import { connectWebSocket } from "./websocketstuff.js";
+import { createWebSocket } from "./websocketstuff.js";
 
 const selectVideoSourceInput = document.getElementById("videoSource");
 const selectAudioSourceInput = document.getElementById("audioSource");
@@ -15,7 +15,7 @@ export function pseudoConsoleDotLog(log) {
   }
 }
 
-let peerId = null;
+let otherCallerId = null;
 const myRTCPeerConnection = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
 });
@@ -74,14 +74,14 @@ async function prepareToCall() {
 
   myRTCPeerConnection.onicecandidate = (event) => {
     // pseudoConsoleDotLog(`ℹ️ myRTCPeerConnection.onicecandidate`);
-    if (event.candidate && peerId) {
-      document.querySelectorAll(".peerId").forEach((el) => {
-        el.innerHTML = `${peerId}`;
+    if (event.candidate && otherCallerId) {
+      document.querySelectorAll(".otherCallerId").forEach((el) => {
+        el.innerHTML = `${otherCallerId}`;
       });
       ws.send(
         JSON.stringify({
           type: "candidate",
-          target: peerId,
+          target: otherCallerId,
           payload: event.candidate,
         }),
       );
@@ -105,62 +105,73 @@ async function prepareToCall() {
   const localVideo = document.getElementById("localVideo");
   localVideo.srcObject = localStream;
 
-  await startCall(peerId);
+  await startCall(otherCallerId);
 }
 
-async function startCall(newPeerId) {
-  if (!!newPeerId) {
-    peerId = newPeerId;
+async function startCall(newOtherCallerId) {
+  if (!!newOtherCallerId) {
+    otherCallerId = newOtherCallerId;
     const offer = await myRTCPeerConnection.createOffer();
     await myRTCPeerConnection.setLocalDescription(offer);
     pseudoConsoleDotLog(
-      `ℹ️ Sending offer to ${newPeerId} through the server (via websocket)`,
+      `ℹ️ Sending offer to ${newOtherCallerId.slice(0, 8) + "…"} through the server (via websocket)`,
     );
     ws.send(
-      JSON.stringify({ type: "offer", target: newPeerId, payload: offer }),
+      JSON.stringify({
+        type: "offer",
+        target: newOtherCallerId,
+        payload: offer,
+      }),
     );
   }
 }
 
-const ws = connectWebSocket();
+const ws = createWebSocket();
 
 ws.onmessage = async (event) => {
   const msg = JSON.parse(event.data);
+
+  // received a welcome message, the server is giving you myCallerId
   if (msg.type === "welcome") {
-    const myId = msg.id;
-    document.querySelectorAll(".myId").forEach((el) => {
-      el.innerHTML = `${myId}`;
+    const myCallerId = msg.id;
+    document.querySelectorAll(".myCallerId").forEach((el) => {
+      el.innerHTML = `${myCallerId}`;
     });
-    pseudoConsoleDotLog(`ℹ️ The server gave you an ID of <b>${myId}</b>`);
+    pseudoConsoleDotLog(`ℹ️ The server gave you an ID of <b>${myCallerId}</b>`);
     return;
   }
+
+  // received an offer from the other caller through the server
   if (msg.type === "offer") {
-    peerId = msg.from;
+    otherCallerId = msg.from;
+    pseudoConsoleDotLog(
+      `ℹ️ Received offer from ${otherCallerId.slice(0, 8) + "…"} Now I'll send an answer back`,
+    );
     await myRTCPeerConnection.setRemoteDescription(
       new RTCSessionDescription(msg.payload),
     );
     const answer = await myRTCPeerConnection.createAnswer();
     await myRTCPeerConnection.setLocalDescription(answer);
-    pseudoConsoleDotLog(
-      `ℹ️ Received offer from ${peerId.slice(0, 8) + "…"} Now I'm sending an answer back`,
-    );
     ws.send(
       JSON.stringify({
         type: "answer",
-        target: peerId,
+        target: otherCallerId,
         payload: answer,
       }),
     );
   }
+
+  // received an answer from the other caller through the server
   if (msg.type === "answer") {
     await myRTCPeerConnection.setRemoteDescription(
       new RTCSessionDescription(msg.payload),
     );
     pseudoConsoleDotLog(`ℹ️ Received answer`);
   }
+
+  // received an ICE candidate from the other caller through the server
   if (msg.type === "candidate") {
     myRTCPeerConnection.addIceCandidate(new RTCIceCandidate(msg.payload));
-    // pseudoConsoleDotLog(`ℹ️ Received ICE candidate`);
   }
 };
 
@@ -196,9 +207,9 @@ function copyElementTextToClipboard(e) {
   }, 150);
 }
 
-document.querySelectorAll(".myId").forEach((el) => {
+document.querySelectorAll(".myCallerId").forEach((el) => {
   el.addEventListener("click", copyElementTextToClipboard);
 });
-document.querySelectorAll(".peerId").forEach((el) => {
+document.querySelectorAll(".otherCallerId").forEach((el) => {
   el.addEventListener("click", copyElementTextToClipboard);
 });
