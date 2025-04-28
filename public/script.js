@@ -174,8 +174,6 @@ document.querySelectorAll(".myId").forEach((el) => {
     setTimeout(() => {
       sel.removeAllRanges(); // Deselect after 200ms
     }, 150);
-
-    console.log("wew");
   });
 });
 document.querySelectorAll(".peerId").forEach((el) => {
@@ -189,7 +187,5 @@ document.querySelectorAll(".peerId").forEach((el) => {
     setTimeout(() => {
       sel.removeAllRanges(); // Deselect after 200ms
     }, 150);
-
-    console.log("wew");
   });
 });
