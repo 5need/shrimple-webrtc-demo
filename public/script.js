@@ -103,12 +103,15 @@ async function prepareToCall() {
 
 async function startCall(newPeerId) {
   if (!!newPeerId) {
+    peerId = newPeerId;
     const offer = await myRTCPeerConnection.createOffer();
     await myRTCPeerConnection.setLocalDescription(offer);
     pseudoConsoleDotLog(
-      `ℹ️ Sending offer to ${peerId} through the server (via websocket)`,
+      `ℹ️ Sending offer to ${newPeerId} through the server (via websocket)`,
     );
-    ws.send(JSON.stringify({ type: "offer", target: peerId, payload: offer }));
+    ws.send(
+      JSON.stringify({ type: "offer", target: newPeerId, payload: offer }),
+    );
   }
 }
 
@@ -154,9 +157,11 @@ ws.onmessage = async (event) => {
   }
 };
 
-document.getElementById("startCall").addEventListener("click", () => {
-  peerId = prompt("Enter ID of the other client to call:");
-  startCall(peerId);
+document.getElementById("startCall").addEventListener("submit", (e) => {
+  const i = e.target.querySelector("input");
+  console.log(i.value);
+  startCall(i.value);
+  e.preventDefault();
 });
 selectVideoSourceInput.addEventListener("input", () => {
   prepareToCall();
