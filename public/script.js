@@ -25,6 +25,7 @@ const myRTCPeerConnection = new RTCPeerConnection({
 });
 
 async function populateMediaDeviceList() {
+  pseudoConsoleDotLog(`▶️ Running <mark>populateMediaDeviceList()</mark>`);
   try {
     await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -47,14 +48,19 @@ async function populateMediaDeviceList() {
         selectAudioSourceInput.appendChild(option);
       }
     });
+    return true;
   } catch (err) {
     pseudoConsoleDotLog(
       `‼️ Video/Audio permissions were denied, enable them please`,
     );
+    return false;
   }
 }
 
 async function addVideoAndAudioToMyRTCPeerConnection() {
+  pseudoConsoleDotLog(
+    `▶️ Running <mark>addVideoAndAudioToMyRTCPeerConnection()</mark>`,
+  );
   // first remove all the previous video and audio sources from myRTCPeerConnection
   myRTCPeerConnection.getSenders().forEach((sender) => {
     myRTCPeerConnection.removeTrack(sender);
@@ -70,10 +76,10 @@ async function addVideoAndAudioToMyRTCPeerConnection() {
   });
 
   localStream.getTracks().forEach((track) => {
-    myRTCPeerConnection.addTrack(track, localStream);
     pseudoConsoleDotLog(
       `📹 Adding <em>${track.label || track.kind}</em> to <mark>myRTCPeerConnection</mark>`,
     );
+    myRTCPeerConnection.addTrack(track, localStream);
   });
 
   const localVideo = document.getElementById("localVideo");
@@ -81,10 +87,10 @@ async function addVideoAndAudioToMyRTCPeerConnection() {
 }
 
 async function prepareMyRTCPeerConnection() {
+  pseudoConsoleDotLog(`▶️ Running <mark>prepareMyRTCPeerConnection()</mark>`);
   await addVideoAndAudioToMyRTCPeerConnection();
 
   myRTCPeerConnection.onicecandidate = (event) => {
-    // pseudoConsoleDotLog(`ℹ️ myRTCPeerConnection.onicecandidate`);
     if (event.candidate && otherCallerId) {
       document.querySelectorAll(".otherCallerId").forEach((el) => {
         el.innerHTML = `${otherCallerId}`;
@@ -102,24 +108,25 @@ async function prepareMyRTCPeerConnection() {
   myRTCPeerConnection.oniceconnectionstatechange = () => {
     if (myRTCPeerConnection.iceConnectionState === "connected") {
       pseudoConsoleDotLog(
-        `ℹ️ ICE connection established on <mark>myRTCPeerConnection</mark>`,
+        `📞 ICE connection established on <mark>myRTCPeerConnection</mark>`,
       );
     }
   };
 
   myRTCPeerConnection.ontrack = (event) => {
-    // pseudoConsoleDotLog(`ℹ️ myRTCPeerConnection.ontrack`);
     const remoteVideo = document.getElementById("remoteVideo");
     remoteVideo.srcObject = event.streams[0];
   };
+
+  enableVideoAndAudioButton.remove();
 }
 
 async function sendCallOfferToOtherCaller() {
-  const offer = await myRTCPeerConnection.createOffer();
-  await myRTCPeerConnection.setLocalDescription(offer);
   pseudoConsoleDotLog(
     `ℹ️ Sending offer to ${otherCallerId.slice(0, 8) + "…"} through the server (via websocket)`,
   );
+  const offer = await myRTCPeerConnection.createOffer();
+  await myRTCPeerConnection.setLocalDescription(offer);
   ws.send(
     JSON.stringify({
       type: "offer",
@@ -137,10 +144,10 @@ ws.onmessage = async (event) => {
   // received a welcome message, the server is giving you myCallerId
   if (msg.type === "welcome") {
     const myCallerId = msg.id;
+    pseudoConsoleDotLog(`ℹ️ The server gave you an ID of <b>${myCallerId}</b>`);
     document.querySelectorAll(".myCallerId").forEach((el) => {
       el.innerHTML = `${myCallerId}`;
     });
-    pseudoConsoleDotLog(`ℹ️ The server gave you an ID of <b>${myCallerId}</b>`);
     return;
   }
 
@@ -148,7 +155,7 @@ ws.onmessage = async (event) => {
   if (msg.type === "offer") {
     otherCallerId = msg.from;
     pseudoConsoleDotLog(
-      `ℹ️ Received offer from ${otherCallerId.slice(0, 8) + "…"} Now I'll send an answer back`,
+      `ℹ️ Received offer from ${otherCallerId.slice(0, 8) + "…"} Now I'll send an answer back to them through the server`,
     );
     await myRTCPeerConnection.setRemoteDescription(
       new RTCSessionDescription(msg.payload),
@@ -166,10 +173,10 @@ ws.onmessage = async (event) => {
 
   // received an answer from the other caller through the server
   if (msg.type === "answer") {
+    pseudoConsoleDotLog(`ℹ️ Received answer`);
     await myRTCPeerConnection.setRemoteDescription(
       new RTCSessionDescription(msg.payload),
     );
-    pseudoConsoleDotLog(`ℹ️ Received answer`);
   }
 
   // received an ICE candidate from the other caller through the server
@@ -180,9 +187,11 @@ ws.onmessage = async (event) => {
 
 otherCallerIdForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const otherCallerIdInput = e.target.querySelector("input");
-  if (!!otherCallerIdInput.value) {
-    otherCallerId = otherCallerIdInput.value;
+  await prepareMyRTCPeerConnection();
+
+  const otherCallerIdInputValue = e.target.querySelector("input").value;
+  if (!!otherCallerIdInputValue) {
+    otherCallerId = otherCallerIdInputValue;
     await sendCallOfferToOtherCaller();
   }
 });
@@ -201,10 +210,9 @@ selectAudioSourceInput.addEventListener("input", async () => {
   }
 });
 
-enableVideoAndAudioButton.addEventListener("click", async (e) => {
+enableVideoAndAudioButton.addEventListener("click", async () => {
   await populateMediaDeviceList();
   await prepareMyRTCPeerConnection();
-  e.target.remove();
 });
 
 function copyElementTextToClipboard(e) {
@@ -225,3 +233,5 @@ document.querySelectorAll(".myCallerId").forEach((el) => {
 document.querySelectorAll(".otherCallerId").forEach((el) => {
   el.addEventListener("click", copyElementTextToClipboard);
 });
+
+(await populateMediaDeviceList()) && (await prepareMyRTCPeerConnection());
