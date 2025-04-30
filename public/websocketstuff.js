@@ -3,8 +3,13 @@ import { pseudoConsoleDotLog } from "./script.js";
 let isWebSocketConnected = false;
 let reconnectInterval;
 
+const __prod__ = window.location.protocol == "https:";
+
 export function createWebSocket() {
-  const ws = new WebSocket("ws://localhost:3000/ws");
+  const wsURL = __prod__
+    ? "wss://shrimple-webrtc-demo.404notboring.com/ws" // <- your domain here
+    : "ws://localhost:3000/ws";
+  const ws = new WebSocket(wsURL);
 
   ws.onopen = () => {
     pseudoConsoleDotLog(
