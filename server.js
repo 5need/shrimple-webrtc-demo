@@ -1,6 +1,5 @@
 import express from "express";
 import expressWs from "express-ws";
-import { v4 as uuidv4 } from "uuid";
 
 const app = express();
 expressWs(app);
@@ -8,7 +7,7 @@ expressWs(app);
 const websocketClients = new Map();
 
 app.ws("/ws", (ws, req) => {
-  const id = uuidv4();
+  const id = Math.floor(100000 + Math.random() * 900000).toString(); // random 6-digit int
   websocketClients.set(id, ws);
   console.log(`WebSocket connected: ${id}`);
 
